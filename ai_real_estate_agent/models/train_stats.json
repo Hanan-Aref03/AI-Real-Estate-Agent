@@ -1,0 +1,34 @@
+{
+  "features": [
+    "lot_area",
+    "year_built",
+    "year_remod_add",
+    "mas_vnr_area",
+    "bsmt_unf_sf",
+    "total_bsmt_sf",
+    "first_flr_sf",
+    "garage_area",
+    "living_area"
+  ],
+  "training_row_count": 1460,
+  "test_row_count": 1459,
+  "median_sale_price": 163000.0,
+  "min_sale_price": 34900.0,
+  "max_sale_price": 755000.0,
+  "feature_importance": {
+    "living_area": 0.3626378181278018,
+    "year_built": 0.18269296242859084,
+    "garage_area": 0.1440657985955755,
+    "total_bsmt_sf": 0.12616084930171098,
+    "first_flr_sf": 0.0585722854074741,
+    "year_remod_add": 0.03957704520866931,
+    "lot_area": 0.03898188925313483,
+    "bsmt_unf_sf": 0.029705435804495403,
+    "mas_vnr_area": 0.01760591587254735
+  },
+  "metrics": {
+    "validation_rmse": 31534.427340440892,
+    "validation_mae": 19644.85726560122,
+    "validation_r2": 0.8703549130990321
+  }
+}
