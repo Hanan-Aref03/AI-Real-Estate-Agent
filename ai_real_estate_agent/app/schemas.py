@@ -84,6 +84,34 @@ class PredictionResponse(BaseModel):
     interpretation: str = Field(..., min_length=1)
     stats_summary: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
+    user_benefit_summary: str | None = None
+
+
+class QueryRequest(BaseModel):
+    """Request payload for the real estate AI assistant."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(..., min_length=1)
+    context: str | None = None
+
+    @field_validator("question")
+    @classmethod
+    def _question_must_not_be_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("question must not be blank")
+        return stripped
+
+
+class QueryResponse(BaseModel):
+    """Response payload for the real estate AI assistant."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str = Field(..., min_length=1)
+    source: str
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ErrorResponse(BaseModel):
@@ -94,3 +122,5 @@ class ErrorResponse(BaseModel):
     detail: str
     missing_fields: list[str] = Field(default_factory=list)
     extraction: ExtractedFeatures | None = None
+    stats_summary: dict[str, Any] = Field(default_factory=dict)
+    user_message: str | None = None

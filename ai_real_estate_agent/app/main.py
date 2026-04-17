@@ -10,7 +10,12 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.llm_client import LLMOutputError, extract_features, interpret_prediction
+from app.llm_client import (
+    LLMOutputError,
+    extract_features,
+    interpret_prediction,
+    query_real_estate_assistant,
+)
 from app.model_loader import (
     ModelArtifactsError,
     get_required_features,
@@ -18,7 +23,14 @@ from app.model_loader import (
     load_artifacts,
     predict_price,
 )
-from app.schemas import ErrorResponse, ExtractedFeatures, PredictionRequest, PredictionResponse
+from app.schemas import (
+    ErrorResponse,
+    ExtractedFeatures,
+    PredictionRequest,
+    PredictionResponse,
+    QueryRequest,
+    QueryResponse,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,7 +67,25 @@ def _build_stats_summary(stats: dict[str, Any]) -> dict[str, Any]:
         "min_sale_price": stats.get("min_sale_price"),
         "max_sale_price": stats.get("max_sale_price"),
         "feature_importance": stats.get("feature_importance", {}),
+        "feature_statistics": stats.get("feature_statistics", {}),
     }
+
+
+def _build_user_benefit_summary(price: float, stats: dict[str, Any]) -> str:
+    """Explain why the product is useful in plain language."""
+
+    median_price = float(stats.get("median_sale_price", 0) or 0)
+    if median_price and price >= median_price:
+        positioning = "above the training-set midpoint"
+    elif median_price:
+        positioning = "below the training-set midpoint"
+    else:
+        positioning = "within the observed market range"
+
+    return (
+        f"This estimate helps a buyer, seller, or agent quickly benchmark a home against the training-set market, "
+        f"see whether the property sits {positioning}, and understand which details most influence the final value."
+    )
 
 
 @asynccontextmanager
@@ -118,6 +148,25 @@ async def extract_endpoint(request: PredictionRequest) -> ExtractedFeatures:
         ) from exc
 
 
+@app.post("/query", response_model=QueryResponse)
+async def query_endpoint(request: QueryRequest) -> QueryResponse:
+    """General real estate AI assistant endpoint backed by Gemini."""
+
+    try:
+        result = query_real_estate_assistant(request.question, request.context)
+        return QueryResponse(
+            answer=result.text,
+            source=result.source,
+            warnings=result.warnings,
+        )
+    except Exception as exc:
+        logger.exception("Unexpected assistant query failure")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Assistant query failed: {type(exc).__name__}",
+        ) from exc
+
+
 @app.post(
     "/predict",
     response_model=PredictionResponse,
@@ -161,7 +210,11 @@ async def predict_endpoint(request: PredictionRequest) -> PredictionResponse:
 
         warnings: list[str] = []
         if merged_extraction.source == "mock":
-            warnings.append("Mock LLM fallback was used because OPENAI_API_KEY is not configured.")
+            warnings.append(
+                "Mock LLM fallback was used because no remote LLM provider was available."
+            )
+        if merged_extraction.source.startswith("gemini:"):
+            warnings.append("Gemini handled the language steps for this response.")
 
         return PredictionResponse(
             predicted_price=predicted_price,
@@ -172,6 +225,7 @@ async def predict_endpoint(request: PredictionRequest) -> PredictionResponse:
             interpretation=interpretation,
             stats_summary=_build_stats_summary(stats),
             warnings=warnings,
+            user_benefit_summary=_build_user_benefit_summary(predicted_price, stats),
         )
     except HTTPException as exc:
         if exc.status_code == status.HTTP_400_BAD_REQUEST:
@@ -179,6 +233,11 @@ async def predict_endpoint(request: PredictionRequest) -> PredictionResponse:
                 detail="Missing required features for prediction",
                 missing_fields=extraction_payload.missing_fields if extraction_payload else [],
                 extraction=extraction_payload,
+                stats_summary=_build_stats_summary(stats) if "stats" in locals() else {},
+                user_message=(
+                    "Complete the missing property details to unlock the valuation. "
+                    "You can type the exact values you know or apply typical values as a starting point."
+                ),
             )
             return JSONResponse(status_code=400, content=error_payload.model_dump())
         raise exc
@@ -187,6 +246,8 @@ async def predict_endpoint(request: PredictionRequest) -> PredictionResponse:
             detail=str(exc),
             missing_fields=[],
             extraction=None,
+            stats_summary={},
+            user_message="The pricing model is unavailable right now. Check that the trained model artifacts exist.",
         )
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -197,6 +258,8 @@ async def predict_endpoint(request: PredictionRequest) -> PredictionResponse:
             detail=f"Malformed LLM output: {exc}",
             missing_fields=[],
             extraction=extraction_payload,
+            stats_summary=_build_stats_summary(stats) if "stats" in locals() else {},
+            user_message="The language step returned an invalid response. You can retry or fill features manually.",
         )
         return JSONResponse(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -209,6 +272,8 @@ async def predict_endpoint(request: PredictionRequest) -> PredictionResponse:
             detail=f"{fallback_message}: {type(exc).__name__}",
             missing_fields=[],
             extraction=extraction_payload,
+            stats_summary=_build_stats_summary(stats) if "stats" in locals() else {},
+            user_message="The request did not complete. Please retry, or use the extraction audit to inspect the inputs.",
         )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

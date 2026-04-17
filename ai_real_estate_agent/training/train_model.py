@@ -126,6 +126,15 @@ def build_training_stats(
             reverse=True,
         )
     }
+    prepared_features = prepare_features(train_df)
+    feature_statistics = {
+        feature_name: {
+            "median": float(prepared_features[feature_name].median()),
+            "min": float(prepared_features[feature_name].min()),
+            "max": float(prepared_features[feature_name].max()),
+        }
+        for feature_name in feature_names
+    }
 
     return {
         "features": feature_names,
@@ -135,6 +144,7 @@ def build_training_stats(
         "min_sale_price": float(train_df[TARGET_COLUMN].min()),
         "max_sale_price": float(train_df[TARGET_COLUMN].max()),
         "feature_importance": feature_importance,
+        "feature_statistics": feature_statistics,
         "metrics": metrics,
     }
 

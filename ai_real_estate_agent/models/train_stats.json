@@ -26,6 +26,53 @@
     "bsmt_unf_sf": 0.029705435804495403,
     "mas_vnr_area": 0.01760591587254735
   },
+  "feature_statistics": {
+    "lot_area": {
+      "median": 9478.5,
+      "min": 1300.0,
+      "max": 215245.0
+    },
+    "year_built": {
+      "median": 1973.0,
+      "min": 1872.0,
+      "max": 2010.0
+    },
+    "year_remod_add": {
+      "median": 1994.0,
+      "min": 1950.0,
+      "max": 2010.0
+    },
+    "mas_vnr_area": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1600.0
+    },
+    "bsmt_unf_sf": {
+      "median": 477.5,
+      "min": 0.0,
+      "max": 2336.0
+    },
+    "total_bsmt_sf": {
+      "median": 991.5,
+      "min": 0.0,
+      "max": 6110.0
+    },
+    "first_flr_sf": {
+      "median": 1087.0,
+      "min": 334.0,
+      "max": 4692.0
+    },
+    "garage_area": {
+      "median": 480.0,
+      "min": 0.0,
+      "max": 1418.0
+    },
+    "living_area": {
+      "median": 1464.0,
+      "min": 334.0,
+      "max": 5642.0
+    }
+  },
   "metrics": {
     "validation_rmse": 31534.427340440892,
     "validation_mae": 19644.85726560122,

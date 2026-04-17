@@ -1,7 +1,9 @@
 """LLM query endpoints."""
+
 from fastapi import APIRouter, HTTPException
+
+from app.llm_client import query_real_estate_assistant
 from app.schemas import QueryRequest, QueryResponse
-from app.llm_client import get_llm_client
 
 router = APIRouter(prefix="/query", tags=["queries"])
 
@@ -18,13 +20,11 @@ async def llm_query(request: QueryRequest):
         QueryResponse with answer
     """
     try:
-        llm = get_llm_client()
-        answer = llm.query(request.question, request.context)
-        
+        result = query_real_estate_assistant(request.question, request.context)
         return QueryResponse(
-            answer=answer,
-            source="openai"
+            answer=result.text,
+            source=result.source,
+            warnings=result.warnings,
         )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

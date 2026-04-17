@@ -305,6 +305,7 @@ def render_prediction_result(data: dict[str, Any]) -> None:
     """Render pricing result."""
 
     stats = data.get("stats_summary", {})
+    feature_importance = stats.get("feature_importance", {})
     st.markdown(
         f"""
         <div class="result-card">
@@ -323,6 +324,35 @@ def render_prediction_result(data: dict[str, Any]) -> None:
         st.metric("Min", f'${(stats.get("min_sale_price") or 0):,.0f}')
     with metric_cols[2]:
         st.metric("Max", f'${(stats.get("max_sale_price") or 0):,.0f}')
+
+    insights: list[str] = []
+    median_price = stats.get("median_sale_price")
+    if median_price:
+        if data["predicted_price"] > median_price:
+            insights.append("This estimate is above the market median in the training data.")
+        elif data["predicted_price"] < median_price:
+            insights.append("This estimate is below the market median in the training data.")
+        else:
+            insights.append("This estimate is close to the market median in the training data.")
+
+    top_drivers = list(feature_importance.keys())[:3]
+    if top_drivers:
+        insights.append("Top value drivers: " + ", ".join(humanize_feature_name(item) for item in top_drivers))
+
+    if data.get("user_benefit_summary"):
+        insights.append(data["user_benefit_summary"])
+
+    if insights:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <div class="section-title">Market Insights</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        for insight in insights:
+            st.write(f"- {insight}")
 
     if data.get("features_used"):
         st.caption("Features used")
